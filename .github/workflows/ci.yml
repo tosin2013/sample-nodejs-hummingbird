@@ -62,7 +62,7 @@ jobs:
           docker build -f Containerfile -t $IMAGE_NAME:scan .
 
       - name: Run Grype vulnerability scan
-        uses: anchore/scan-action@v6
+        uses: anchore/scan-action@v7
         with:
           image: ${{ env.IMAGE_NAME }}:scan
           fail-build: true
