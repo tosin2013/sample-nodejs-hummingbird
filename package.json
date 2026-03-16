@@ -1,0 +1,24 @@
+{
+  "name": "sample-nodejs-hummingbird",
+  "version": "1.0.0",
+  "description": "Sample Node.js HTTP application built on Red Hat Hummingbird container images for the Zero-CVE Workshop",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "hummingbird",
+    "nodejs",
+    "express",
+    "zero-cve",
+    "container"
+  ],
+  "author": "Tosin Akinosho <takinosh@redhat.com>",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}
