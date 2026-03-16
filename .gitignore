@@ -11,3 +11,6 @@ Thumbs.db
 *.swp
 *.swo
 *~
+
+# PRD (local reference only)
+sample-nodejs-hummingbird-PRD.md
