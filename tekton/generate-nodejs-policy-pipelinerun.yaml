@@ -1,0 +1,17 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  name: generate-nodejs-policy
+  namespace: hummingbird-builds
+spec:
+  pipelineRef:
+    name: selinux-policy-pipeline
+  params:
+    - name: IMAGE
+      value: "REPLACE_WITH_REGISTRY/workshopuser/secure-nodejs:latest"
+    - name: POLICY_NAME
+      value: "hummingbird_nodejs"
+    - name: PORTS
+      value: "8080"
+    - name: MOUNTS
+      value: ""

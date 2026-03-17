@@ -1,0 +1,90 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: udica-policy-generate
+  namespace: hummingbird-builds
+  labels:
+    app.kubernetes.io/part-of: hummingbird-workshop
+spec:
+  description: >-
+    Generate a custom SELinux CIL policy for a container image using udica.
+    The task inspects the image configuration and produces a policy scoped
+    to the image's actual port, mount, and capability requirements.
+  params:
+    - name: IMAGE
+      type: string
+      description: "Fully qualified image reference (registry/repo:tag or @sha256:...)"
+    - name: POLICY_NAME
+      type: string
+      description: "Name for the generated SELinux policy (alphanumeric + underscores)"
+    - name: PORTS
+      type: string
+      description: "Comma-separated list of ports the container exposes"
+      default: "8080"
+    - name: MOUNTS
+      type: string
+      description: "Comma-separated host paths the container bind-mounts (empty if none)"
+      default: ""
+  results:
+    - name: POLICY_CIL
+      description: "Contents of the generated .cil policy file"
+    - name: IMAGE_DIGEST
+      description: "Digest of the inspected image"
+    - name: POLICY_TYPE
+      description: "SELinux type to use in seLinuxOptions (policy_name.process)"
+  steps:
+    - name: generate-policy
+      image: registry.redhat.io/rhel9/toolbox:latest
+      securityContext:
+        privileged: true
+      script: |
+        #!/usr/bin/env bash
+        set -euo pipefail
+
+        echo "=== Installing udica ==="
+        dnf install -y -q udica podman container-selinux
+
+        IMAGE="$(params.IMAGE)"
+        POLICY="$(params.POLICY_NAME)"
+        PORTS="$(params.PORTS)"
+        MOUNTS="$(params.MOUNTS)"
+
+        echo "=== Pulling image: $IMAGE ==="
+        podman pull "$IMAGE"
+
+        DIGEST=$(podman inspect "$IMAGE" --format '{{.Digest}}')
+        echo -n "$DIGEST" > $(results.IMAGE_DIGEST.path)
+
+        echo "=== Running container for inspection ==="
+        RUN_ARGS=("--name" "udica-inspect" "--env" "container=podman")
+
+        IFS=',' read -ra PORT_LIST <<< "$PORTS"
+        for p in "${PORT_LIST[@]}"; do
+          [ -n "$p" ] && RUN_ARGS+=("-p" "${p}:${p}")
+        done
+
+        if [ -n "$MOUNTS" ]; then
+          IFS=',' read -ra MOUNT_LIST <<< "$MOUNTS"
+          for m in "${MOUNT_LIST[@]}"; do
+            [ -n "$m" ] && mkdir -p "$m" && RUN_ARGS+=("-v" "${m}:${m}:rw,Z")
+          done
+        fi
+
+        podman run -d "${RUN_ARGS[@]}" "$IMAGE" || true
+        sleep 3
+
+        echo "=== Generating udica policy: $POLICY ==="
+        podman inspect udica-inspect | udica "$POLICY"
+
+        echo "=== Generated CIL policy ==="
+        cat "${POLICY}.cil"
+
+        cp "${POLICY}.cil" /workspace/policy.cil
+        cat "${POLICY}.cil" > $(results.POLICY_CIL.path)
+        echo -n "${POLICY}.process" > $(results.POLICY_TYPE.path)
+
+        echo ""
+        echo "=== Policy type for seLinuxOptions: ${POLICY}.process ==="
+
+        podman stop udica-inspect 2>/dev/null || true
+        podman rm udica-inspect 2>/dev/null || true

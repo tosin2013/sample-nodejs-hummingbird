@@ -1,0 +1,34 @@
+apiVersion: machineconfiguration.openshift.io/v1
+kind: MachineConfig
+metadata:
+  name: 99-hummingbird-selinux-policy
+  labels:
+    machineconfiguration.openshift.io/role: worker
+spec:
+  config:
+    ignition:
+      version: 3.2.0
+    storage:
+      files:
+        - path: /etc/selinux/hummingbird_nodejs.cil
+          mode: 0644
+          contents:
+            source: data:text/plain;charset=utf-8;base64,REPLACE_WITH_BASE64_ENCODED_CIL
+    systemd:
+      units:
+        - name: load-hummingbird-selinux.service
+          enabled: true
+          contents: |
+            [Unit]
+            Description=Load Hummingbird SELinux policies
+            After=selinux-autorelabel.service
+
+            [Service]
+            Type=oneshot
+            ExecStart=/usr/sbin/semodule -i /etc/selinux/hummingbird_nodejs.cil \
+              /usr/share/udica/templates/base_container.cil \
+              /usr/share/udica/templates/net_container.cil
+            RemainAfterExit=true
+
+            [Install]
+            WantedBy=multi-user.target

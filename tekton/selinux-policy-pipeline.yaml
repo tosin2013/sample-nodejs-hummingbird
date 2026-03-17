@@ -1,0 +1,36 @@
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: selinux-policy-pipeline
+  namespace: hummingbird-builds
+  labels:
+    app.kubernetes.io/part-of: hummingbird-workshop
+spec:
+  params:
+    - name: IMAGE
+      type: string
+      description: "Fully qualified image reference"
+    - name: POLICY_NAME
+      type: string
+      description: "Name for the generated SELinux policy"
+    - name: PORTS
+      type: string
+      description: "Comma-separated list of ports"
+      default: "8080"
+    - name: MOUNTS
+      type: string
+      description: "Comma-separated host paths (empty if none)"
+      default: ""
+  tasks:
+    - name: generate-policy
+      taskRef:
+        name: udica-policy-generate
+      params:
+        - name: IMAGE
+          value: "$(params.IMAGE)"
+        - name: POLICY_NAME
+          value: "$(params.POLICY_NAME)"
+        - name: PORTS
+          value: "$(params.PORTS)"
+        - name: MOUNTS
+          value: "$(params.MOUNTS)"
